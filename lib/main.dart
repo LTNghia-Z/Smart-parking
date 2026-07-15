@@ -1,24 +1,33 @@
+import 'package:baidoxe_app/providers/camera_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_database/firebase_database.dart';
-import 'firebase_options.dart';
-import 'screens/plate_camera_screen.dart';
-import 'screens/testSocKet.dart';
-import 'services/websocket_service.dart';
+import 'package:provider/provider.dart';
 
+import 'firebase_options.dart';
+import 'providers/navigation_provider.dart';
+import 'screens/home_screen.dart';
+import 'services/firebase_realtime_service.dart';
+import 'screens/plate_camera_screen.dart';
+import 'providers/swipe_card_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  WebSocketService.instance.connect();
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
- runApp(
-    const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: HomeScreen(),
+  
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await FirebaseRealtimeService.instance.connect();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => CameraProvider()),
+        ChangeNotifierProvider(create: (_) => SwipeCardProvider()),
+        
+      ],
+      builder: (context, child) {
+        return const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: HomeScreen(),
+        );
+      },
     ),
   );
 }
-
