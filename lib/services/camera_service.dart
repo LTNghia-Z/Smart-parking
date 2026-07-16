@@ -5,6 +5,18 @@ import 'package:image/image.dart' as img;
 
 import 'plate_recognition_service.dart';
 
+class CameraCaptureResult {
+  final XFile image;
+  final Uint8List imageBytes;
+  final PlateRecognitionResult? recognition;
+
+  const CameraCaptureResult({
+    required this.image,
+    required this.imageBytes,
+    required this.recognition,
+  });
+}
+
 class CameraService {
   CameraService._();
 
@@ -69,6 +81,11 @@ class CameraService {
 
   /// Chụp ảnh
   Future<PlateRecognitionResult?> captureImage() async {
+    final capture = await captureImageWithData();
+    return capture?.recognition;
+  }
+
+  Future<CameraCaptureResult?> captureImageWithData() async {
     if (!_isInitialized) {
       print("Camera chưa khởi tạo.");
 
@@ -88,7 +105,20 @@ class CameraService {
 
       _lastImageBytes = fixed;
 
-      return await _plateRecognitionService.recognizePlate(fixed);
+      PlateRecognitionResult? recognition;
+
+      try {
+        recognition = await _plateRecognitionService.recognizePlate(fixed);
+      } catch (e) {
+        // Ảnh vẫn hợp lệ để hiển thị dù dịch vụ AI nhận diện bị lỗi.
+        print("Lỗi nhận diện biển số: $e");
+      }
+
+      return CameraCaptureResult(
+        image: image,
+        imageBytes: fixed,
+        recognition: recognition,
+      );
     } catch (e) {
       print("Lỗi chụp ảnh: $e");
 

@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:baidoxe_app/widgets/left_sidebar_widget.dart';
 import '../providers/navigation_provider.dart';
+import '../providers/parking_provider.dart';
 import '../providers/swipe_card_provider.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/parking_page.dart';
 import 'pages/history_page.dart';
 import '../services/firebase_realtime_service.dart';
 import '../services/realtime_dispatcher.dart';
+import '../services/firestore_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,28 +24,32 @@ class _HomeScreenState extends State<HomeScreen> {
   /// TODO: Sau này lấy từ Provider
   ///==========================
 
-  bool databaseConnected = false;
   late final RealtimeDispatcher dispatcher;
 
-  @override
   @override
   void initState() {
     super.initState();
 
-    FirebaseRealtimeService.instance.initialize(
-      RealtimeDispatcher(swipeCardProvider: context.read<SwipeCardProvider>()),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    FirebaseRealtimeService.instance.connect();
+      FirebaseRealtimeService.instance.initialize(
+        RealtimeDispatcher(
+          swipeCardProvider: context.read<SwipeCardProvider>(),
+          parkingProvider: context.read<ParkingProvider>(),
+        ),
+      );
 
-    context.read<CameraProvider>().initializeCamera();
+      FirebaseRealtimeService.instance.connect();
+      context.read<CameraProvider>().initializeCamera();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final navigation = context.watch<NavigationProvider>();
 
-    print("Current index = ${navigation.selectedIndex}");
+    debugPrint("Current index = ${navigation.selectedIndex}");
 
     return Scaffold(
       backgroundColor: const Color(0xffF7F8FA),
@@ -130,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 4),
 
-              _buildStatus("KẾT NỐI DATABASE", databaseConnected),
+              _buildStatus("KẾT NỐI DATABASE", FirestoreService.instance.isConnected),
             ],
           ),
         ],
@@ -154,7 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: (connected ? Colors.green : Colors.red).withOpacity(0.4),
+                color: (connected ? Colors.green : Colors.red).withValues(
+                  alpha: 0.4,
+                ),
                 blurRadius: 6,
               ),
             ],

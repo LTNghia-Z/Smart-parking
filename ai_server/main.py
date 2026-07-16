@@ -3,8 +3,13 @@ import re
 import json
 import requests
 
-from fastapi import FastAPI, File, UploadFile
+from datetime import datetime
+from pathlib import Path
+
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 app = FastAPI(title="Parking Plate Recognition API - Plate Recognizer")
@@ -20,6 +25,50 @@ app.add_middleware(
 
 PLATE_RECOGNIZER_TOKEN = os.getenv("PLATE_RECOGNIZER_TOKEN")
 PLATE_RECOGNIZER_URL = "https://api.platerecognizer.com/v1/plate-reader/"
+BASE_DIR = Path(__file__).resolve().parent
+UPLOADS_DIR = BASE_DIR / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
+
+def sanitize_filename_part(value: str) -> str:
+    value = (value or "").strip()
+
+    if not value:
+        return "unknown"
+
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+    value = value.strip("._-")
+
+    return value or "unknown"
+
+
+def normalize_time_key(value: str) -> str:
+    value = (value or "").strip()
+    if not value:
+        return ""
+
+    candidates = [
+        "%Y-%m-%d_%H-%M-%S",
+        "%Y-%m-%d_%H_%M_%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%d %H:%M:%S.%f",
+    ]
+
+    for fmt in candidates:
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.strftime("%Y-%m-%d_%H_%M_%S")
+        except ValueError:
+            continue
+
+    normalized = value.replace("T", " ").replace("t", " ")
+    normalized = re.sub(r"[\s:]+", "_", normalized)
+    normalized = re.sub(r"_+", "_", normalized)
+    return normalized.strip("_ ")
 
 
 def normalize_plate_text(text: str) -> str:
@@ -167,6 +216,56 @@ def health_check():
         "engine": "Plate Recognizer Cloud API",
         "message": "Use POST /recognize-plate to upload image",
     }
+
+
+@app.post("/save-gate-image")
+async def save_gate_image(
+    file: UploadFile = File(...),
+    uid: str = Form("unknown"),
+    time: str = Form(""),
+):
+    try:
+        safe_uid = sanitize_filename_part(uid)
+        safe_time = sanitize_filename_part(
+            normalize_time_key(time)
+            or datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        )
+
+        target_dir = UPLOADS_DIR
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        file_name = f"{safe_uid}_{safe_time}.jpg"
+        file_path = target_dir / file_name
+
+        image_bytes = await file.read()
+        file_path.write_bytes(image_bytes)
+
+        relative_path = f"uploads/{file_name}"
+
+        return {
+            "success": True,
+            "fileName": file_name,
+            "relativePath": relative_path,
+            "url": f"/{relative_path}",
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": str(e),
+        }
+
+
+@app.get("/gate-image")
+def get_gate_image(uid: str, time: str):
+    safe_uid = sanitize_filename_part(uid)
+    safe_time = sanitize_filename_part(normalize_time_key(time))
+    file_path = UPLOADS_DIR / f"{safe_uid}_{safe_time}.jpg"
+
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh quẹt thẻ")
+
+    return FileResponse(file_path, media_type="image/jpeg")
 
 
 @app.post("/recognize-plate")

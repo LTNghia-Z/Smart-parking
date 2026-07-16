@@ -1,34 +1,36 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import '../models/message_model.dart';
+import '../providers/parking_provider.dart';
 import '../providers/swipe_card_provider.dart';
 
 class RealtimeDispatcher {
   final SwipeCardProvider swipeCardProvider;
+  final ParkingProvider parkingProvider;
 
-  RealtimeDispatcher({required this.swipeCardProvider});
+  RealtimeDispatcher({
+    required this.swipeCardProvider,
+    required this.parkingProvider,
+  });
 
-  Future<void> dispatch(String rawMessage) async {
-    final json = jsonDecode(rawMessage);
-
-    final message = Message.fromJson(json);
-
+  Future<void> dispatch(Message message) async {
     switch (message.type) {
       case "quet_vao":
         await swipeCardProvider.processEntry(message);
         break;
 
       case "quet_ra":
-        // await _swipeCardProvider.processExit(message);
+        await swipeCardProvider.processExit(message);
         break;
 
-      case "bai_do":
+      case "parking":
+        parkingProvider.processParkingMessage(message);
         break;
       case "loi":
         break;
 
       default:
-        print("Unknown message: ${message.type}");
+        debugPrint("Unknown message: ${message.type}");
     }
   }
 }

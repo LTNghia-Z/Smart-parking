@@ -245,7 +245,7 @@ class _PlateCameraScreenState extends State<PlateCameraScreen> {
     final isBusy = _isCapturing || _isRecognizing;
 
     return DropdownButtonFormField<CameraDescription>(
-      value: _selectedCamera,
+      initialValue: _selectedCamera,
       decoration: const InputDecoration(
         labelText: 'Chọn camera',
         border: OutlineInputBorder(),

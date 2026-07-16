@@ -43,7 +43,7 @@ class _LeftSidebarState extends State<LeftSidebar> {
             children: [
               const SizedBox(height: 20),
 
-              Image.asset("assets/logo.png", width: 100),
+              Image.asset("assets/logo.png", width: 150),
 
               const SizedBox(height: 12),
 

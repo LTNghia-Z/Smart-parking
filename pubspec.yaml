@@ -41,6 +41,7 @@ dependencies:
   web_socket_channel: ^3.0.3
   provider: ^6.1.5
   image: ^4.5.4
+  cloud_firestore: 5.6.12
 dev_dependencies:
   flutter_test:
     sdk: flutter
