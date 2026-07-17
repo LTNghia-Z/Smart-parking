@@ -8,7 +8,7 @@ class Message {
 
   factory Message.fromJson(Map<String, dynamic> json) {
     // Normalize incoming JSON: prefer `data` object, but also accept
-    // messages that put fields like `uid`, `plate`, `time` at top-level.
+    // messages that put fields like `cid`, `plate`, `time` at top-level.
     final rawData = json["data"];
     final Map<String, dynamic> data = rawData is Map
         ? rawData.map<String, dynamic>(
@@ -16,8 +16,8 @@ class Message {
           )
         : <String, dynamic>{};
 
-    // If sender placed common fields at top-level, merge them into data
-    for (final key in ["uid", "cardId", "plate", "time"]) {
+    // If sender placed common fields at top-level, merge them into data.
+    for (final key in ["cid", "fix", "plate", "time"]) {
       if ((json.containsKey(key)) && !data.containsKey(key)) {
         data[key] = json[key];
       }
