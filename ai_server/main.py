@@ -221,11 +221,11 @@ def health_check():
 @app.post("/save-gate-image")
 async def save_gate_image(
     file: UploadFile = File(...),
-    uid: str = Form("unknown"),
+    cid: str = Form("unknown"),
     time: str = Form(""),
 ):
     try:
-        safe_uid = sanitize_filename_part(uid)
+        safe_cid = sanitize_filename_part(cid)
         safe_time = sanitize_filename_part(
             normalize_time_key(time)
             or datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
@@ -234,7 +234,7 @@ async def save_gate_image(
         target_dir = UPLOADS_DIR
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        file_name = f"{safe_uid}_{safe_time}.jpg"
+        file_name = f"{safe_cid}_{safe_time}.jpg"
         file_path = target_dir / file_name
 
         image_bytes = await file.read()
@@ -257,10 +257,10 @@ async def save_gate_image(
 
 
 @app.get("/gate-image")
-def get_gate_image(uid: str, time: str):
-    safe_uid = sanitize_filename_part(uid)
+def get_gate_image(cid: str, time: str):
+    safe_cid = sanitize_filename_part(cid)
     safe_time = sanitize_filename_part(normalize_time_key(time))
-    file_path = UPLOADS_DIR / f"{safe_uid}_{safe_time}.jpg"
+    file_path = UPLOADS_DIR / f"{safe_cid}_{safe_time}.jpg"
 
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh quẹt thẻ")
