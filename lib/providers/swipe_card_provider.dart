@@ -19,9 +19,13 @@ class SwipeCardProvider extends ChangeNotifier {
   int _requestVersion = 0;
   int get requestVersion => _requestVersion;
 
-  /// 0 = Chưa có dữ liệu hoặc có lỗi, 1 = xe vào, 2 = xe ra.
   int _state = 0;
   int get state => _state;
+
+  // ---- Cơ chế chặn re-trigger sau khi đóng cổng ----
+  String? _ignoredCid;
+  DateTime? _ignoredAt;
+  static const Duration _ignoreWindow = Duration(seconds: 8);
 
   Message? _entryMessage;
   Message? get entryMessage => _entryMessage;
@@ -50,7 +54,30 @@ class SwipeCardProvider extends ChangeNotifier {
   String? _comparisonMessage;
   String? get comparisonMessage => _comparisonMessage;
 
+  /// Có đang trong thời gian "vừa đóng cổng cho cid này" hay không.
+  bool _isIgnoredCid(String cid) {
+    if (_ignoredCid == null || _ignoredAt == null) return false;
+    if (cid.isEmpty || cid != _ignoredCid) return false;
+    final expired = DateTime.now().difference(_ignoredAt!) > _ignoreWindow;
+    if (expired) {
+      // hết hạn -> dọn cờ, không chặn nữa
+      _ignoredCid = null;
+      _ignoredAt = null;
+      return false;
+    }
+    return true;
+  }
+
   Future<void> processEntry(Message message) async {
+    final cid = _extractCid(message);
+
+    if (_isIgnoredCid(cid)) {
+      debugPrint(
+        "Bỏ qua processEntry cho cid=$cid vì vừa đóng cổng (chống echo).",
+      );
+      return;
+    }
+
     _requestVersion++;
     final currentRequestVersion = _requestVersion;
     _isLoading = true;
@@ -58,8 +85,6 @@ class SwipeCardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cid = _extractCid(message);
-
       if (cid.isEmpty) {
         _setStateZeroError("Lệnh quẹt vào không có CID thẻ.");
         return;
@@ -121,6 +146,15 @@ class SwipeCardProvider extends ChangeNotifier {
   }
 
   Future<void> processExit(Message message) async {
+    final cid = _extractCid(message);
+
+    if (_isIgnoredCid(cid)) {
+      debugPrint(
+        "Bỏ qua processExit cho cid=$cid vì vừa đóng cổng (chống echo).",
+      );
+      return;
+    }
+
     _requestVersion++;
     final currentRequestVersion = _requestVersion;
     _isLoading = true;
@@ -128,8 +162,6 @@ class SwipeCardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final cid = _extractCid(message);
-
       if (cid.isEmpty) {
         _setStateZeroError("Lệnh quẹt ra không có CID thẻ.");
         return;
@@ -258,6 +290,36 @@ class SwipeCardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void showStatusMessage(String message) {
+    _requestVersion++;
+    _resetData();
+    _errorMessage = message;
+    notifyListeners();
+  }
+
+  /// Dùng khi bấm "Đóng cổng": reset UI VÀ chặn mọi sự kiện quẹt-thẻ
+  /// echo lại cho đúng cid này trong [_ignoreWindow] tiếp theo.
+  void closeAndIgnore(String? cid) {
+    if (cid != null && cid.trim().isNotEmpty) {
+      _ignoredCid = cid.trim();
+      _ignoredAt = DateTime.now();
+    }
+    _requestVersion++;
+    _resetData();
+    notifyListeners();
+  }
+
+  static bool shouldAllowEntryForLatestLog(ParkingLogRecord? latestLog) {
+    if (latestLog == null) {
+      return true;
+    }
+    return latestLog.state == 0;
+  }
+
+  String _extractCid(Message message) {
+    return message.data["cid"]?.toString().trim() ?? "";
+  }
+
   void _comparePlates({required String entryPlate, required String exitPlate}) {
     final normalizedEntryPlate = _normalizePlate(entryPlate);
     final normalizedExitPlate = _normalizePlate(exitPlate);
@@ -278,33 +340,21 @@ class SwipeCardProvider extends ChangeNotifier {
     return value.toUpperCase().replaceAll(RegExp(r"[^A-Z0-9]"), "");
   }
 
-  String _extractCid(Message message) {
-    final raw = message.data["cid"]?.toString() ?? "";
-    return raw.trim();
-  }
-
   void _setStateZeroError(String message) {
     _resetData();
     _errorMessage = message;
   }
 
   void _resetData() {
+    _state = 0;
     _entryMessage = null;
-    _entryImage = null;
-    _entryImageBytes = null;
     _exitMessage = null;
+    _entryImage = null;
     _exitImage = null;
+    _entryImageBytes = null;
     _exitImageBytes = null;
     _errorMessage = null;
     _platesMatch = null;
     _comparisonMessage = null;
-  }
-
-  static bool shouldAllowEntryForLatestLog(ParkingLogRecord? latestLog) {
-    if (latestLog == null) {
-      return true;
-    }
-
-    return latestLog.state != 1;
   }
 }

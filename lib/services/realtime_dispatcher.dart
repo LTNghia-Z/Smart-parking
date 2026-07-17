@@ -26,7 +26,8 @@ class RealtimeDispatcher {
       case "parking":
         parkingProvider.processParkingMessage(message);
         break;
-      case "loi":
+      case "het_cho":
+        swipeCardProvider.showStatusMessage("Đã hết chỗ để xe");
         break;
 
       default:

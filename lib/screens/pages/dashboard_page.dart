@@ -318,25 +318,35 @@ class _VehicleCardState extends State<_VehicleCard> {
       data: widget.message?.data ?? const {},
     );
 
-    await _sendMessage(message);
+    final success = await _sendMessage(message);
+    if (success) {
+      await _saveGateImage();
+    }
   }
 
   Future<void> _handleCloseGate() async {
-    final expectedRequestVersion = widget.requestVersion;
-    final success = await _sendCommand(type: widget.side.closeType, data: "");
+  final provider = context.read<SwipeCardProvider>();
 
-    if (!success || !mounted) {
-      return;
-    }
+  // Lấy cid của card đang xử lý TRƯỚC khi reset, để biết cần ignore cid nào.
+  final cid = widget.message?.data["cid"]?.toString();
 
-    final provider = context.read<SwipeCardProvider>();
+  // Set ignore + reset UI ngay lập tức, chặn mọi echo tới sớm.
+  provider.closeAndIgnore(cid);
 
-    if (widget.side == GateSide.entry && provider.state == 1) {
-      await _saveGateImage();
-    }
-
-    provider.clearIfCurrentRequest(expectedRequestVersion);
+  if (!mounted) {
+    return;
   }
+
+  final success = await _sendCommand(type: widget.side.closeType, data: "");
+
+  if (!success && mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đóng cổng thất bại, nhưng giao diện đã được reset.'),
+      ),
+    );
+  }
+}
 
   Future<bool> _sendMessage(Message message) async {
     return _sendCommand(type: message.type, data: message.data);
