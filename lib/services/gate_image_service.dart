@@ -33,16 +33,17 @@ class GateImageService {
   static const String baseUrl = 'http://localhost:8000';
 
   Future<Uint8List?> loadGateImage({
-    required String uid,
+    required String cid,
     required String time,
   }) async {
-    if (uid.trim().isEmpty || time.trim().isEmpty) {
+    if (cid.trim().isEmpty || time.trim().isEmpty) {
       return null;
     }
 
     final uri = Uri.parse(
       '$baseUrl/gate-image',
-    ).replace(queryParameters: {"uid": uid, "time": time});
+    ).replace(queryParameters: {"cid": cid, "time": time});
+    
     final response = await http.get(uri);
 
     if (response.statusCode == 404) {
@@ -58,13 +59,13 @@ class GateImageService {
 
   Future<GateImageSaveResult> saveGateImage({
     required Uint8List imageBytes,
-    required String uid,
+    required String cid,
     required String time,
   }) async {
     final uri = Uri.parse('$baseUrl/save-gate-image');
     final request = http.MultipartRequest('POST', uri);
 
-    request.fields["uid"] = uid;
+    request.fields["cid"] = cid;
     request.fields["time"] = time;
     request.files.add(
       http.MultipartFile.fromBytes(
@@ -85,4 +86,3 @@ class GateImageService {
     return GateImageSaveResult.fromJson(jsonData);
   }
 }
-

@@ -291,7 +291,7 @@ class _HistoryTable extends StatelessWidget {
             flex: isTiny ? 2 : 3,
             padding: padding,
             alignment: Alignment.center,
-            child: const _HeaderText("UID thẻ"),
+            child: const _HeaderText("CID thẻ"),
           ),
           _FlexCell(
             flex: isTiny ? 2 : 3,
@@ -346,7 +346,7 @@ class _HistoryTable extends StatelessWidget {
           _FlexCell(
             flex: isTiny ? 2 : 3,
             padding: padding,
-            child: _BodyText(log.uid, fontSize: isTiny ? 12 : 14),
+            child: _BodyText(log.cid, fontSize: isTiny ? 12 : 14),
           ),
           _FlexCell(
             flex: isTiny ? 2 : 3,

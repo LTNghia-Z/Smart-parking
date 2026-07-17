@@ -58,6 +58,30 @@ class SwipeCardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final cid = _extractCid(message);
+
+      if (cid.isEmpty) {
+        _setStateZeroError("Lệnh quẹt vào không có CID thẻ.");
+        return;
+      }
+
+      final latestLog = await _firestoreService.findLatestParkingLogByCid(cid);
+
+      if (_requestVersion != currentRequestVersion) {
+        return;
+      }
+
+      if (!SwipeCardProvider.shouldAllowEntryForLatestLog(latestLog)) {
+        if (latestLog != null && latestLog.state == 1) {
+          _setStateZeroError("Thẻ $cid đã được sử dụng rồi.");
+        } else {
+          _setStateZeroError(
+            "Trạng thái gần nhất của thẻ $cid không hợp lệ: ${latestLog?.state ?? 0}.",
+          );
+        }
+        return;
+      }
+
       final capture = await _cameraService.captureImageWithData();
 
       if (_requestVersion != currentRequestVersion) {
@@ -75,6 +99,8 @@ class SwipeCardProvider extends ChangeNotifier {
       if (result != null) {
         message.data["plate"] = result.displayPlate;
       }
+
+      message.data["cid"] = cid;
 
       _entryMessage = message;
       _entryImage = capture.image;
@@ -102,32 +128,32 @@ class SwipeCardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final uid = message.data["uid"]?.toString().trim() ?? "";
+      final cid = _extractCid(message);
 
-      if (uid.isEmpty) {
-        _setStateZeroError("Lệnh quẹt ra không có UID thẻ.");
+      if (cid.isEmpty) {
+        _setStateZeroError("Lệnh quẹt ra không có CID thẻ.");
         return;
       }
 
-      final latestLog = await _firestoreService.findLatestParkingLogByUid(uid);
+      final latestLog = await _firestoreService.findLatestParkingLogByCid(cid);
 
       if (_requestVersion != currentRequestVersion) {
         return;
       }
 
       if (latestLog == null) {
-        _setStateZeroError("Không tìm thấy lịch sử ra vào của thẻ $uid.");
+        _setStateZeroError("Không tìm thấy lịch sử ra vào của thẻ $cid.");
         return;
       }
 
       if (latestLog.state == 0) {
-        _setStateZeroError("Thẻ $uid đã được ghi nhận đi ra ở lượt gần nhất.");
+        _setStateZeroError("Thẻ $cid đã được ghi nhận đi ra ở lượt gần nhất.");
         return;
       }
 
       if (latestLog.state != 1) {
         _setStateZeroError(
-          "Trạng thái gần nhất của thẻ $uid không hợp lệ: ${latestLog.state}.",
+          "Trạng thái gần nhất của thẻ $cid không hợp lệ: ${latestLog.state}.",
         );
         return;
       }
@@ -155,7 +181,7 @@ class SwipeCardProvider extends ChangeNotifier {
         type: "quet_vao",
         data: <String, dynamic>{
           "id": latestLog.id,
-          "uid": latestLog.uid,
+          "cid": latestLog.cid,
           "plate": latestLog.plate,
           "time": latestLog.displayTime,
           "fix": latestLog.fix,
@@ -184,7 +210,7 @@ class SwipeCardProvider extends ChangeNotifier {
 
       try {
         entryImageBytes = await _gateImageService.loadGateImage(
-          uid: latestLog.uid,
+          cid: latestLog.cid,
           time: latestLog.imageTimeKey,
         );
       } catch (error, stackTrace) {
@@ -252,21 +278,33 @@ class SwipeCardProvider extends ChangeNotifier {
     return value.toUpperCase().replaceAll(RegExp(r"[^A-Z0-9]"), "");
   }
 
+  String _extractCid(Message message) {
+    final raw = message.data["cid"]?.toString() ?? "";
+    return raw.trim();
+  }
+
   void _setStateZeroError(String message) {
     _resetData();
     _errorMessage = message;
   }
 
   void _resetData() {
-    _state = 0;
     _entryMessage = null;
-    _exitMessage = null;
     _entryImage = null;
-    _exitImage = null;
     _entryImageBytes = null;
+    _exitMessage = null;
+    _exitImage = null;
     _exitImageBytes = null;
     _errorMessage = null;
     _platesMatch = null;
     _comparisonMessage = null;
+  }
+
+  static bool shouldAllowEntryForLatestLog(ParkingLogRecord? latestLog) {
+    if (latestLog == null) {
+      return true;
+    }
+
+    return latestLog.state != 1;
   }
 }

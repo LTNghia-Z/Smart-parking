@@ -273,13 +273,13 @@ class _VehicleCardState extends State<_VehicleCard> {
   final GateImageService _gateImageService = GateImageService();
 
   late TextEditingController _fixController;
-  String? _lastUid; // để biết khi nào đổi sang xe khác thì reset ô fix
+  String? _lastCid; // để biết khi nào đổi sang xe khác thì reset ô fix
 
   @override
   void initState() {
     super.initState();
     _fixController = TextEditingController(text: _initialFixValue);
-    _lastUid = widget.message?.data["uid"]?.toString();
+    _lastCid = widget.message?.data["cid"]?.toString();
   }
 
   String get _initialFixValue => widget.message?.data["fix"]?.toString() ?? "";
@@ -287,11 +287,11 @@ class _VehicleCardState extends State<_VehicleCard> {
   @override
   void didUpdateWidget(covariant _VehicleCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final newUid = widget.message?.data["uid"]?.toString();
-    // Chỉ reset nội dung ô fix khi ĐỔI SANG XE KHÁC (uid khác),
+    final newCid = widget.message?.data["cid"]?.toString();
+    // Chỉ reset nội dung ô fix khi ĐỔI SANG XE KHÁC (cid khác),
     // để không ghi đè giá trị admin đang gõ dở cho cùng 1 xe.
-    if (newUid != _lastUid) {
-      _lastUid = newUid;
+    if (newCid != _lastCid) {
+      _lastCid = newCid  ;
       _fixController.text = _initialFixValue;
     }
   }
@@ -375,13 +375,13 @@ class _VehicleCardState extends State<_VehicleCard> {
     }
 
     final data = widget.message?.data ?? const <String, dynamic>{};
-    final uid = data["uid"]?.toString() ?? "unknown";
+    final cid = data["cid"]?.toString() ?? "unknown";
     final time = data["time"]?.toString() ?? "";
     try {
     
       final result = await _gateImageService.saveGateImage(
         imageBytes: imageBytes,
-        uid: uid,
+        cid: cid,
         time: time,
       );
 
@@ -433,7 +433,7 @@ class _VehicleCardState extends State<_VehicleCard> {
           _buildInfoRow(
             icon: Icons.credit_card,
             label: "ID thẻ",
-            value: message?.data["uid"]?.toString() ?? "",
+            value: message?.data["cid"]?.toString() ?? "",
           ),
           const SizedBox(height: 14),
 
